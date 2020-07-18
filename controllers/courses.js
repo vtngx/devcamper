@@ -1,6 +1,7 @@
 const ErrorResponse = require('./../utils/errorResponse');
 const asyncHandler = require('./../middleware/async');
 const Course = require('./../models/Course');
+const Bootcamp = require('./../models/Bootcamp');
 
 //Get all courses
 // GET /api/v1/courses
@@ -12,7 +13,10 @@ exports.getCourses = asyncHandler(async function (req, res, next) {
     if(req.params.bootcampId) {
         query = Course.find({bootcamp: req.params.bootcampId});
     } else {
-        query = Course.find();
+        query = Course.find().populate({
+            path: 'bootcamp',
+            select: 'name description'
+        });
     }
 
     const courses = await query;
@@ -24,43 +28,39 @@ exports.getCourses = asyncHandler(async function (req, res, next) {
     });
 });
 
-//Get a course by ID - GET /api/v1/bootcamps/:bootcampId - Public
+//Get a course by ID - GET /api/v1/courses/:id - Public
 exports.getCourse = asyncHandler(async function (req, res, next) {
-    const bootcamp = await Bootcamp.findById(req.params.id);
+    const course = await Course.findById(req.params.id).populate({
+        path: 'bootcamp',
+        select: 'name description'
+    });
 
-    if(bootcamp) {
+    if(course) {
         res.status(200).json({
             success: true,
-            data: bootcamp
+            data: course
         });
     } else {
         next(new ErrorResponse(
-            'Bootcamp not found with id of ' + req.params.id,
+            'Course not found with id of ' + req.params.id,
             404
         ));
     }
 });
 
-//Create a new bootcamp - POST /api/v1/bootcamps - Private
+//Create a new course - POST /api/v1/bootcamp/:bootcampId/courses - Private
 exports.createCourse = asyncHandler(async function (req, res, next) {
-    const course = await Course.create(req.body);
+    req.body.bootcamp = req.params.bootcampId;
 
-    res.status(200).json({
-        success: true,
-        data: course
-    });
-});
+    //Check bootcamp existence
+    const bootcamp = await Bootcamp.findById(req.params.bootcampId);
 
-//Update a bootcamp - PUT /api/v1/bootcamps/:id - Private
-exports.updateBootcamp = asyncHandler(async function (req, res, next) {
-    const bootcamp = await Bootcamp.findByIdAndUpdate(req.params.id, req.body, {
-        new: true,
-        runValidators: true
-    });
     if(bootcamp) {
+        const course = await Course.create(req.body);
+
         res.status(200).json({
             success: true,
-            data: bootcamp
+            data: course
         });
     } else {
         next(new ErrorResponse(
@@ -70,10 +70,35 @@ exports.updateBootcamp = asyncHandler(async function (req, res, next) {
     }
 });
 
-//Delete a bootcamp - DELETE /api/v1/bootcamps/:id - Private
-exports.deleteBootcamp = asyncHandler(async function (req, res, next) {
-    const bootcamp = await Bootcamp.findByIdAndDelete(req.params.id);
-    if(bootcamp) {
+//Update a course - PUT /api/v1/courses/:id - Private
+exports.updateCourse = asyncHandler(async function (req, res, next) {
+    let course = await Course.findById(req.params.id);
+
+    if(course) {
+        course = await Course.findByIdAndUpdate(req.params.id, req.body, {
+            new: true,
+            runValidators: true
+        });
+
+        res.status(200).json({
+            success: true,
+            data: course
+        });
+    } else {
+        next(new ErrorResponse(
+            'Course not found with id of ' + req.params.id,
+            404
+        ));
+    }
+});
+
+//Delete a course - DELETE /api/v1/courses/:id - Private
+exports.deleteCourse = asyncHandler(async function (req, res, next) {
+    let course = await Course.findById(req.params.id);
+
+    if(course) {
+        course = await Course.remove();
+
         res.status(200).json({
             success: true,
             data: {}
@@ -85,28 +110,3 @@ exports.deleteBootcamp = asyncHandler(async function (req, res, next) {
         ));
     }
 });
-
-//Get bootcamps within a radius - GET /api/v1/bootcamps/radius/:zipcode/:distance/ - Private
-exports.getBootcampsInRadius = asyncHandler(async function (req, res, next) {
-    const { zipcode,distance } = req.params;
-
-    //Get lattitude/longitude from geocoder
-    const location = await geoCoder.geocode(zipcode);
-    const lat = location[0].latitude;
-    const lng = location[0].longitude;
-
-    //Calc radius using radians
-    //Divide distance by radius of Earth
-    //Earth Radius = 6378km
-    const radius = distance / 6378;
-    const bootcamps = await Bootcamp.find({
-        location: { $geoWithin: { $centerSphere: [[ lng, lat ], radius ]}}
-    });
-
-    res.status(200).json({
-        success: true,
-        count: bootcamps.length,
-        data: bootcamps
-    });
-});
-
