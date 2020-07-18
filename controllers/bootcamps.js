@@ -2,6 +2,7 @@ const ErrorResponse = require('./../utils/errorResponse');
 const Bootcamp = require('./../models/Bootcamp.js');
 const asyncHandler = require('./../middleware/async');
 const geoCoder = require('./../utils/geocoder');
+const path = require('path');
 
 //Get all bootcamps - GET /api/v1/bootcamps - Public
 exports.getBootcamps = asyncHandler(async function (req, res, next) {
@@ -165,5 +166,62 @@ exports.getBootcampsInRadius = asyncHandler(async function (req, res, next) {
         count: bootcamps.length,
         data: bootcamps
     });
+});
+
+//Upload photo to a bootcamp - PUT /api/v1/bootcamps/:id/photo - Private
+exports.bootcampPhotoUpload = asyncHandler(async function (req, res, next) {
+    const bootcamp = await Bootcamp.findById(req.params.id);
+    if(bootcamp) {
+        if (req.files) {
+            const file = req.files.file;
+
+            //Check if the uploaded is a photo
+            if (file.mimetype.startsWith('image')) {
+                //Check File size
+                if (file.size > process.env.MAX_FILE_UPLOAD) {
+                    return next(new ErrorResponse(
+                        `Please upload an image less than ${process.env.MAX_FILE_UPLOAD}` ,
+                        400
+                    ));
+                } else {
+                    //Custom filename
+                    file.name = `photo_${bootcamp._id}${path.parse(file.name).ext}`;
+
+                    //Upload file
+                    file.mv(`${process.env.FILE_UPLOAD_PATH}/${file.name}`, async function (err) {
+                        if(err) {
+                            console.error(err);
+                            return next(new ErrorResponse(
+                                `Problem with file upload`,
+                                500
+                            ))
+                        }
+
+                        await Bootcamp.findOneAndUpdate(req.params.id, {photo: file.name});
+
+                        res.status(200).json({
+                            success: true,
+                            data: file.name
+                        });
+                    });
+                }
+            } else {
+                return next(new ErrorResponse(
+                    'Please upload an image',
+                    400
+                ));
+            }
+        } else {
+            return next(new ErrorResponse(
+                'Please upload a file',
+                400
+            ));
+        }
+    } else {
+        return  next(new ErrorResponse(
+            'Bootcamp not found with id of ' + req.params.id,
+            404
+        ));
+    }
 });
 
