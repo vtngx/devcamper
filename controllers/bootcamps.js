@@ -1,83 +1,12 @@
 const ErrorResponse = require('./../utils/errorResponse');
-const Bootcamp = require('./../models/Bootcamp.js');
 const asyncHandler = require('./../middleware/async');
+const Bootcamp = require('./../models/Bootcamp.js');
 const geoCoder = require('./../utils/geocoder');
 const path = require('path');
 
 //Get all bootcamps - GET /api/v1/bootcamps - Public
 exports.getBootcamps = asyncHandler(async function (req, res, next) {
-    let query;
-
-    //Make copy of req.query
-    const reqQuery = {...req.query};
-
-    //Fields to exclude
-    const removeFields = ['select', 'sort', 'limit', 'page', 'skip'];
-    removeFields.forEach(function (param) {
-        delete reqQuery[param];
-    });
-
-    //Create query string
-    let queryStr = JSON.stringify(reqQuery);
-
-    //Create operators
-    queryStr = queryStr.replace(
-        /\b(gt|gte|lt|lte|in)\b/g,
-        match => `$${match}`
-    );
-
-    //Find resource
-    query = Bootcamp.find(JSON.parse(queryStr)).populate('courses');
-
-    //select
-    if (req.query.select) {
-        const fields = req.query.select.split(',').join(' ');
-        query = query.select(fields);
-    }
-
-    //sort
-    if (req.query.sort) {
-        const sortBy = req.query.sort.split(',').join(' ');
-        query = query.sort(sortBy);
-    } else {
-        query = query.sort('phone');
-    }
-
-    //pagination
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 20;
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
-    const total = await Bootcamp.countDocuments();
-
-    query = query.skip(startIndex).limit(limit);
-
-    //Executing query
-    const bootcamps = await query;
-
-    //Pagination result
-    const pagination = {};
-
-    if (endIndex < total) {
-        pagination.next = {
-            page: page + 1,
-            limit
-        };
-    }
-
-    if (startIndex > 0) {
-        pagination.prev = {
-            page: page - 1,
-            limit
-        }
-    }
-
-    res.status(200).json({
-        success: true,
-        count: bootcamps.length,
-        pagination: pagination,
-        data: bootcamps
-    });
+    res.status(200).json(res.advancedResults);
 });
 
 //Get a bootcamp by ID - GET /api/v1/bootcamps/:id - Public
