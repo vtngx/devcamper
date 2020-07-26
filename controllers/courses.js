@@ -44,11 +44,20 @@ exports.getCourse = asyncHandler(async function (req, res, next) {
 //Create a new course - POST /api/v1/bootcamp/:bootcampId/courses - Private
 exports.createCourse = asyncHandler(async function (req, res, next) {
     req.body.bootcamp = req.params.bootcampId;
+    req.body.user = req.user.id;
 
     //Check bootcamp existence
     const bootcamp = await Bootcamp.findById(req.params.bootcampId);
 
     if(bootcamp) {
+        //Check ownership
+        if (bootcamp.user.toString() !== req.user.id && req.user.role !== 'admin') {
+            return next(new ErrorResponse(
+                `User ${req.user.name} is not authorized to add a course to bootcamp ${bootcamp._id}`,
+                401
+            ));
+        }
+
         const course = await Course.create(req.body);
 
         res.status(200).json({
@@ -68,6 +77,14 @@ exports.updateCourse = asyncHandler(async function (req, res, next) {
     let course = await Course.findById(req.params.id);
 
     if(course) {
+        //Check ownership
+        if (course.user.toString() !== req.user.id && req.user.role !== 'admin') {
+            return next(new ErrorResponse(
+                `User ${req.user.name} is not authorized to update this course`,
+                401
+            ));
+        }
+
         course = await Course.findByIdAndUpdate(req.params.id, req.body, {
             new: true,
             runValidators: true
@@ -90,7 +107,15 @@ exports.deleteCourse = asyncHandler(async function (req, res, next) {
     let course = await Course.findById(req.params.id);
 
     if(course) {
-        course = await Course.remove();
+        //Check ownership
+        if (course.user.toString() !== req.user.id && req.user.role !== 'admin') {
+            return next(new ErrorResponse(
+                `User ${req.user.name} is not authorized to delete this course`,
+                401
+            ));
+        }
+
+        await course.remove();
 
         res.status(200).json({
             success: true,
