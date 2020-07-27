@@ -80,7 +80,7 @@ exports.forgotPassord = asyncHandler(async function (req, res, next) {
     await user.save({validateBeforeSave: false});
 
     //Create reset URL
-    const resetUrl = `${req.protocol}://${req.get('host')}/api/v1/auth/resetpassword/${resetToken}`;
+    const resetUrl = `${req.protocol}://${req.get('host')}/api/v1/authgit pu/resetpassword/${resetToken}`;
     const message = `You have requested to reset the password. Please mae a PUT request to: \n\n ${resetUrl}`;
 
     try {
@@ -131,6 +131,44 @@ exports.resetPassword = asyncHandler(async function (req, res, next) {
 
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
+    await user.save();
+
+    sendTokenResponse(user, 200, res);
+});
+
+//Update user details - PUT /api/v1/auth/updatedetails - Private
+exports.updateDetails = asyncHandler(async function (req, res, next) {
+    const fieldsToUpdate = {
+        name: req.body.name,
+        email: req.body.email
+    };
+
+    const user = await User.findByIdAndUpdate(req.user.id, fieldsToUpdate, {
+        new: true,
+        runValidators: true
+    });
+
+    res
+        .status(200)
+        .json({success: true, data: user});
+});
+
+//Update password - PUT /api/v1/auth/updatepassword - Private
+exports.updatePassword = asyncHandler(async function (req, res, next) {
+    const user = await User.findById(req.user.id).select('+password');
+
+    const currentPassword = req.body.currentPassword;
+    const newPassword = req.body.newPassword;
+
+    // Check current password
+    if (!(await user.matchPassword(currentPassword))) {
+        return next(new ErrorResponse(
+            'Password incorrect',
+            401
+        ));
+    }
+
+    user.password = newPassword;
     await user.save();
 
     sendTokenResponse(user, 200, res);
