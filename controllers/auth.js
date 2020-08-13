@@ -54,6 +54,19 @@ exports.login = asyncHandler(async function (req, res, next) {
     }
 });
 
+//User Logout - POST /api/v1/auth/logout - Private
+exports.logout = asyncHandler(async function (req, res, next) {
+    res.cookie('token', 'none', {
+        expires: new Date(Date.now() + 10 * 1000),
+        httpOnly: true
+    });
+
+    res.status(200).json({
+        success: true,
+        data: {}
+    });
+});
+
 //Get Current Logged in User - GET /api/v1/auth/me - Private
 exports.getMe = asyncHandler(async function (req, res, next) {
     const user = await User.findById(req.user.id);
