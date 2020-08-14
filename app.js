@@ -1,17 +1,18 @@
 const mongoSanitize = require('express-mongo-sanitize');
 const errorHandler = require('./middleware/error');
 const fileupload = require('express-fileupload');
+const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
+const xssClean = require('xss-clean');
 const express = require("express");
 const dotenv = require("dotenv");
 const morgan = require('morgan');
 const helmet = require('helmet');
-const xssClean = require('xss-clean');
-const rateLimit = require('express-rate-limit');
-const hpp = require('hpp');
 const colors = require('colors');
+const cors = require('cors');
 const path = require('path');
+const hpp = require('hpp');
 
 //load env file
 dotenv.config({path: './config/config.env'});
@@ -61,6 +62,9 @@ app.use(limiter);
 
 //Prevent HPP
 app.use(hpp());
+
+//Enable CORS
+app.use(cors());
 
 //Set static folders
 app.use(express.static(path.join(__dirname, 'public')));
