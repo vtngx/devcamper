@@ -1,3 +1,4 @@
+const mongoSanitize = require('express-mongo-sanitize');
 const errorHandler = require('./middleware/error');
 const fileupload = require('express-fileupload');
 const cookieParser = require('cookie-parser');
@@ -5,6 +6,10 @@ const connectDB = require('./config/db');
 const express = require("express");
 const dotenv = require("dotenv");
 const morgan = require('morgan');
+const helmet = require('helmet');
+const xssClean = require('xss-clean');
+const rateLimit = require('express-rate-limit');
+const hpp = require('hpp');
 const colors = require('colors');
 const path = require('path');
 
@@ -37,6 +42,26 @@ if (process.env.NODE_ENV === 'development') {
 //FIle uploading
 app.use(fileupload());
 
+//Sanitize data
+app.use(mongoSanitize());
+
+//Set security headers
+app.use(helmet());
+
+//Prevent XSS
+app.use(xssClean());
+
+//Rate limiting
+const limiter = rateLimit({
+    windowMs: 10 * 60 * 1000,   //10 min
+    max: 1
+});
+
+app.use(limiter);
+
+//Prevent HPP
+app.use(hpp());
+
 //Set static folders
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -64,3 +89,4 @@ process.on('unhandledRejection', function (err, promise) {
         process.exit(1);
     });
 });
+
